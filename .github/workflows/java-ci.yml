@@ -1,0 +1,63 @@
+name: Java CI - Compilar, Probar y Empaquetar
+
+# Define cuándo se debe ejecutar el workflow
+on: [push, pull_request]
+
+jobs:
+  # Define un único trabajo (job) llamado 'build-and-test'
+  build-test:
+    # Se ejecutará en un corredor (runner) de Ubuntu
+    runs-on: ubuntu-latest
+
+    steps:
+      # --- 1. Configuración ---
+      
+      # Descarga el código del repositorio al runner
+      - name: Clonamos el codigo
+        uses: actions/checkout@v5
+
+      # Configura el JDK de Java 21
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'temurin' # Una distribución popular de OpenJDK
+
+      # --- 2. Compilación y Pruebas ---
+      
+      # Compila los archivos .java de 'src' y los guarda en 'out'
+      - name: Compile code
+        run: |
+          mkdir out
+          javac -d out src/*.java
+      
+      # Ejecuta los tests (CalculadoraTest)
+      # -ea (enable assertions) es crucial para que 'assert' funcione
+      # -cp out (classpath) le dice a Java dónde buscar los .class
+      - name: Run tests
+        run: java -ea -cp out CalculadoraTest
+        
+      # --- 3. Empaquetado y Ejecución (Solo si los tests pasan) ---
+
+      # Crea el archivo JAR ejecutable
+      # -cvfe: Create Verbose File Entrypoint
+      # 'Calculadora.jar': Nombre del archivo de salida
+      # 'Main': La clase que tiene el método main() para ejecutar
+      # '-C out .': Cambia al directorio 'out' y añade todo su contenido
+      - name: Package JAR
+        run: |
+          cd out
+          jar -cvfe Calculadora.jar Main *.class
+
+      # Ejecuta el JAR creado como una verificación final
+      - name: Run executable JAR
+        run: java -jar out/Calculadora.jar
+
+      # --- 4. Subida del Artefacto ---
+      
+      # Sube el 'Calculadora.jar' a GitHub para que puedas descargarlo
+      - name: Upload artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: calculadora-ejecutable # Nombre del artefacto en GitHub
+          path: out/Calculadora.jar       # Archivo a subir
